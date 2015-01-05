@@ -1,0 +1,30 @@
+﻿Build started 2015/1/4 21:58:52.
+     1>Project "E:\VSProject\rectExtractor\rectExtractor\rectExtractor.vcxproj" on node 2 (build target(s)).
+     1>InitializeBuildStatus:
+         Creating "Debug\rectExtractor.unsuccessfulbuild" because "AlwaysCreate" was specified.
+       CustomBuild:
+         Moc'ing rectextractor.h...
+       ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\CL.exe /c /I.\GeneratedFiles /I. /ID:\Qt\4.8.4\include /I.\GeneratedFiles\Debug /ID:\Qt\4.8.4\include\QtCore /ID:\Qt\4.8.4\include\QtGui /Zi /nologo /W1 /WX- /Od /Oy- /D UNICODE /D WIN32 /D QT_LARGEFILE_SUPPORT /D QT_DLL /D QT_CORE_LIB /D QT_GUI_LIB /Gm- /EHsc /MDd /GS /fp:precise /Zc:wchar_t- /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc100.pdb" /Gd /TP /analyze- /errorReport:prompt GeneratedFiles\Debug\moc_rectextractor.cpp main.cpp rectextractor.cpp
+         moc_rectextractor.cpp
+         main.cpp
+         rectextractor.cpp
+         Generating Code...
+         All outputs are up-to-date.
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"E:\VSProject\rectExtractor\Win32\Debug\\rectExtractor.exe" /NOLOGO /LIBPATH:D:\Qt\4.8.4\lib qtmaind.lib QtCored4.lib QtGuid4.lib qtmaind.lib QtCored4.lib QtGuid4.lib opencv_calib3d246d.lib opencv_contrib246d.lib opencv_core246d.lib opencv_features2d246d.lib opencv_flann246d.lib opencv_gpu246d.lib opencv_haartraining_engined.lib opencv_highgui246d.lib opencv_imgproc246d.lib opencv_legacy246d.lib opencv_ml246d.lib opencv_nonfree246d.lib opencv_objdetect246d.lib opencv_ocl246d.lib opencv_photo246d.lib opencv_stitching246d.lib opencv_superres246d.lib opencv_ts246d.lib opencv_video246d.lib opencv_videostab246d.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /ManifestFile:"Debug\rectExtractor.exe.intermediate.manifest" /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /DEBUG /PDB:"E:\VSProject\rectExtractor\Win32\Debug\rectExtractor.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"E:\VSProject\rectExtractor\Win32\Debug\rectExtractor.lib" /MACHINE:X86 Debug\moc_rectextractor.obj
+         Debug\qrc_rectextractor.obj
+         Debug\main.obj
+         Debug\rectextractor.obj
+         LINK : E:\VSProject\rectExtractor\Win32\Debug\\rectExtractor.exe not found or not built by the last incremental link; performing full link
+         rectExtractor.vcxproj -> E:\VSProject\rectExtractor\Win32\Debug\rectExtractor.exe
+       Manifest:
+         C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\bin\mt.exe /nologo /verbose /outputresource:"E:\VSProject\rectExtractor\Win32\Debug\\rectExtractor.exe;#1" /manifest Debug\rectExtractor.exe.intermediate.manifest
+       FinalizeBuildStatus:
+         Deleting file "Debug\rectExtractor.unsuccessfulbuild".
+         Touching "Debug\rectExtractor.lastbuildstate".
+     1>Done Building Project "E:\VSProject\rectExtractor\rectExtractor\rectExtractor.vcxproj" (build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:05.74
