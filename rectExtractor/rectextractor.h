@@ -12,6 +12,9 @@
 #include <QtGui/QPushButton>
 #include <QtGui/QVBoxLayout>
 #include <QtGui/QPainter>
+#include <QtGui/QAction>
+#include <QtGui/QMenu>
+#include <QtGui/QMenuBar>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
@@ -31,39 +34,52 @@ public:
 
 private:
 	//Ui::rectExtractorClass ui;
-
-	//----------------------------
 public slots:
-	void OnOpenOriginClicked();
-	void OnOpenMaskClicked();
+	//void OnOpenOriginClicked();
+	//void OnOpenMaskClicked();
 	void OnExtractContourClicked();
 	void OnDrawContourClicked();
 	void OnGetRectClicked();
 
+	void OpenOriginDir();
+	void OpenMaskDir();
+	void OpenSaveDir();
+
 public:
-	IplImage* ipOriginImg;
-	QImage QOriginImg;
-	QImage QMaskImg;
-	QImage QRgbImg;//for display
+	IplImage ipSaveImg;//save ROI
+	QImage QRgbImg;//for display (full)
+	QImage QRoiImg;//ROI
 
 private:
 	//widgets
 	QWidget* mainWidget;
-	QPushButton *openOriginButton;
-	QPushButton *openMaskButton;
 	QPushButton *extractContourButton;
 	QPushButton *drawContourButton;
 	QPushButton *getRectButton;
-	QLabel *originDirLabel;
-	QLabel *maskDirLabel;
-	QString originPath;
-	QString maskPath;
+	QLabel *originDirHint, *originDirLabel;
+	QLabel *maskDirHint, *maskDirLabel;
+	QLabel *saveDirHint, *saveDirLabel;
 	QLabel *imgLabel;
+	QMenu *fileMenu;
+	QMenu *editMenu;
+	QAction *selOriginAction;
+	QAction *selMaskAction;
+	QAction *selSaveAction;
+	QAction *drawContourAction;
+	QAction *saveROIAction;
+	//----------------------------------
+	QString originPath;//origin dir
+	QString maskPath;//mask dir
+	QString savePath;//save extracted ROI
+	int numPairs;//total number of pairs
+	QVector<QString> pairNames;
+	//----------------------------------
 
 	//image mat
 	Mat originImage;//BGR
 	Mat maskImage;//BINARY
 	Mat rgbImage;//RGB
+	Mat roiImage;//ROI
 
 	//contours
 	vector<vector<Point>> contours;
@@ -71,7 +87,12 @@ private:
 
 	//minimum upright bounding rect
 	Rect minRect;
-	//----------------------------
+
+private:
+	void createActions();
+	void createMenus();
+	void createStatusBar();
+	void traverseDir(QString root);
 };
 
 #endif // RECTEXTRACTOR_H
