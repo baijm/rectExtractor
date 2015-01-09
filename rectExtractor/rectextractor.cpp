@@ -82,17 +82,18 @@ void rectExtractor::OpenOriginDir()
 	QFileDialog* fileDlg = new QFileDialog(this);
 	fileDlg->setWindowTitle(tr("Open Origin Directory"));
 	fileDlg->setDirectory(".");
-	fileDlg->setFilter(tr("Image Files(*.jpg *.bmp)"));
+	fileDlg->setMode(QFileDialog::DirectoryOnly);
 	if(fileDlg->exec() == QDialog::Accepted)
 	{
-		originPath = fileDlg->selectedFiles()[0];
+		originPath = fileDlg->selectedFile();
 		//load jpeg
-		originImage = imread((const char*)originPath.toLocal8Bit());
+		//originImage = imread((const char*)originPath.toLocal8Bit());
 		originDirLabel->setText(originPath);
+		statusLabel->setText(tr("Finished Setting Origin Directory."));
 	}
 	else
 	{
-		QMessageBox::information(NULL, tr("error msg"), tr("no files selected!"));
+		QMessageBox::information(NULL, tr("error msg"), tr("no directory selected!"));
 	}
 }
 
@@ -101,16 +102,19 @@ void rectExtractor::OpenMaskDir()
 	QFileDialog* fileDlg = new QFileDialog(this);
 	fileDlg->setWindowTitle(tr("Open Mask Directory"));
 	fileDlg->setDirectory(".");
-	fileDlg->setFilter(tr("Image Files(*.jpg *.bmp)"));
+	fileDlg->setMode(QFileDialog::DirectoryOnly);
 	if(fileDlg->exec() == QDialog::Accepted)
 	{
-		maskPath = fileDlg->selectedFiles()[0];
-		maskImage = imread((const char*)maskPath.toLocal8Bit(),0);
+		maskPath = fileDlg->selectedFile();
+		//maskImage = imread((const char*)maskPath.toLocal8Bit(),0);
 		maskDirLabel->setText(maskPath);
+		traverseDir(maskPath, maskPath, "*.bmp");
+		numPairs = pairNames.size();
+		statusLabel->setText("Finished Setting Mask Directory. ( "+ QString::number(numPairs,10) +" pictures )");
 	}
 	else
 	{
-		QMessageBox::information(NULL, tr("error msg"), tr("no files selected!"));
+		QMessageBox::information(NULL, tr("error msg"), tr("no directory selected!"));
 	}
 }
 
@@ -119,15 +123,16 @@ void rectExtractor::OpenSaveDir()
 	QFileDialog* fileDlg = new QFileDialog(this);
 	fileDlg->setWindowTitle(tr("Open Save Directory"));
 	fileDlg->setDirectory(".");
-	fileDlg->setFilter(tr("Image Files(*.jpg *.bmp)"));
+	fileDlg->setMode(QFileDialog::DirectoryOnly);
 	if(fileDlg->exec() == QDialog::Accepted)
 	{
-		savePath = fileDlg->selectedFiles()[0];
-		saveDirLabel->setText(maskPath);
+		savePath = fileDlg->selectedFile();
+		saveDirLabel->setText(savePath);
+		statusLabel->setText(tr("Finished Setting Save Directory. "));
 	}
 	else
 	{
-		QMessageBox::information(NULL, tr("error msg"), tr("no files selected!"));
+		QMessageBox::information(NULL, tr("error msg"), tr("no directory selected!"));
 	}
 }
 
@@ -169,10 +174,32 @@ void rectExtractor::createMenus()
 
 void rectExtractor::createStatusBar()
 {
+	statusLabel = new QLabel(this);
+	statusLabel->setAlignment(Qt::AlignLeft);
+	statusLabel->setIndent(3);
+	statusBar()->addWidget(statusLabel);
 }
 
-void rectExtractor::traverseDir(QString root)
+void rectExtractor::traverseDir(const QString root, const QString path, const QString extFilter)
 {
+	QDir dir(path);
+	//pairNames.clear();
+
+	//add pair name to list
+	foreach(QString imgFile, dir.entryList(extFilter, QDir::Files))
+	{
+		QString finPath = path;
+		finPath.remove(0, root.length());
+		QString finFile = imgFile;
+		finFile.remove(finFile.length()-extLen, extLen);
+		//QString finPath = path.remove(0, root.length());
+		pairNames.push_back(finPath+'/'+finFile);
+	}
+	//traverse sub-directory
+	foreach(QString subDir, dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot))
+	{
+		traverseDir(root, path+'/'+subDir, extFilter);
+	}
 }
 
 void rectExtractor::OnExtractContourClicked()

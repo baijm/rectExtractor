@@ -15,6 +15,7 @@
 #include <QtGui/QAction>
 #include <QtGui/QMenu>
 #include <QtGui/QMenuBar>
+#include <QtGui/QStatusBar>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
@@ -23,6 +24,8 @@
 using namespace std;
 using namespace cv;
 //------------------
+
+const int extLen = 4;
 
 class rectExtractor : public QMainWindow
 {
@@ -60,6 +63,7 @@ private:
 	QLabel *maskDirHint, *maskDirLabel;
 	QLabel *saveDirHint, *saveDirLabel;
 	QLabel *imgLabel;
+	QLabel *statusLabel;
 	QMenu *fileMenu;
 	QMenu *editMenu;
 	QAction *selOriginAction;
@@ -92,7 +96,7 @@ private:
 	void createActions();
 	void createMenus();
 	void createStatusBar();
-	void traverseDir(QString root);
+	void traverseDir(const QString root, const QString path, const QString extFilter);
 };
 
 #endif // RECTEXTRACTOR_H
