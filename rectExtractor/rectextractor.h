@@ -16,6 +16,11 @@
 #include <QtGui/QMenu>
 #include <QtGui/QMenuBar>
 #include <QtGui/QStatusBar>
+#include <QtGui/QListWidget>
+
+#include <QtCore/QFile>
+#include <QtCore/QTextStream>
+#include <QtCore/QIODevice>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
@@ -40,13 +45,13 @@ private:
 public slots:
 	//void OnOpenOriginClicked();
 	//void OnOpenMaskClicked();
-	void OnExtractContourClicked();
+	//void OnExtractContourClicked();
 	void OnDrawContourClicked();
-	void OnGetRectClicked();
 
 	void OpenOriginDir();
 	void OpenMaskDir();
 	void OpenSaveDir();
+	void SaveROI();
 
 public:
 	IplImage ipSaveImg;//save ROI
@@ -62,8 +67,8 @@ private:
 	QLabel *originDirHint, *originDirLabel;
 	QLabel *maskDirHint, *maskDirLabel;
 	QLabel *saveDirHint, *saveDirLabel;
-	QLabel *imgLabel;
-	QLabel *statusLabel;
+	QLabel *imgLabel;//display image
+	QLabel *statusLabel;//status bar
 	QMenu *fileMenu;
 	QMenu *editMenu;
 	QAction *selOriginAction;
@@ -80,10 +85,10 @@ private:
 	//----------------------------------
 
 	//image mat
-	Mat originImage;//BGR
-	Mat maskImage;//BINARY
+	//Mat originImage;//BGR
+	//Mat maskImage;//BINARY
 	Mat rgbImage;//RGB
-	Mat roiImage;//ROI
+	//Mat roiImage;//ROI
 
 	//contours
 	vector<vector<Point>> contours;

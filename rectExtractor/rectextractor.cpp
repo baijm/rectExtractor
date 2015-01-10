@@ -34,7 +34,7 @@ rectExtractor::rectExtractor(QWidget *parent, Qt::WFlags flags)
 		this, SLOT(OnDrawContourClicked()));
 	getRectButton = new QPushButton(tr("Get Rect"));
 	connect(getRectButton, SIGNAL(clicked()),
-		this, SLOT(OnGetRectClicked()));
+		this, SLOT(SaveROI()));
 
 	//display image
 	imgLabel = new QLabel(this);
@@ -86,8 +86,6 @@ void rectExtractor::OpenOriginDir()
 	if(fileDlg->exec() == QDialog::Accepted)
 	{
 		originPath = fileDlg->selectedFile();
-		//load jpeg
-		//originImage = imread((const char*)originPath.toLocal8Bit());
 		originDirLabel->setText(originPath);
 		statusLabel->setText(tr("Finished Setting Origin Directory."));
 	}
@@ -106,7 +104,6 @@ void rectExtractor::OpenMaskDir()
 	if(fileDlg->exec() == QDialog::Accepted)
 	{
 		maskPath = fileDlg->selectedFile();
-		//maskImage = imread((const char*)maskPath.toLocal8Bit(),0);
 		maskDirLabel->setText(maskPath);
 		traverseDir(maskPath, maskPath, "*.bmp");
 		numPairs = pairNames.size();
@@ -114,7 +111,9 @@ void rectExtractor::OpenMaskDir()
 	}
 	else
 	{
-		QMessageBox::information(NULL, tr("error msg"), tr("no directory selected!"));
+		QMessageBox::information(NULL, 
+			tr("error msg"), 
+			tr("no directory selected!"));
 	}
 }
 
@@ -157,7 +156,7 @@ void rectExtractor::createActions()
 	saveROIAction = new QAction(tr("Save &ROI"), this);
 	saveROIAction->setStatusTip(tr("Save ROI as JPG in Save Dir"));
 	connect(saveROIAction, SIGNAL(triggered()),
-		this, SLOT(OnGetRectClicked()));
+		this, SLOT(SaveROI()));
 }
 
 void rectExtractor::createMenus()
@@ -202,25 +201,9 @@ void rectExtractor::traverseDir(const QString root, const QString path, const QS
 	}
 }
 
-void rectExtractor::OnExtractContourClicked()
-{
-	if(maskPath.isEmpty())
-	{
-		QMessageBox::information(NULL, 
-			tr("error msg"), 
-			tr("mask path is empty !"));
-		return;
-	}
-	findContours(maskImage, 
-		contours, //vector of contours
-		hierarchy, 
-		CV_RETR_CCOMP, 
-		CV_CHAIN_APPROX_NONE
-		);
-}
-
 void rectExtractor::OnDrawContourClicked()
 {
+/*
 	if(originPath.isEmpty())
 	{
 		QMessageBox::information(NULL, 
@@ -258,25 +241,96 @@ void rectExtractor::OnDrawContourClicked()
 	imgLabel->setPixmap(QPixmap::fromImage(QRgbImg));
 	imgLabel->resize(imgLabel->pixmap()->size());
 	imgLabel->show();
+	*/
 }
 
-void rectExtractor::OnGetRectClicked()
+void rectExtractor::SaveROI()
 {
-	if(contours.size() != 1)
+	if(pairNames.size() == 0)
 	{
 		QMessageBox::information(NULL, 
 			tr("error msg"), 
-			tr("0 or >1 contours found !"));
+			tr("mask path not set !"));
 		return;
 	}
-	RotatedRect minRRect = minAreaRect(contours[0]);
-	minRect = minRRect.boundingRect();
-	originImage(minRect).copyTo(roiImage);
+	
+	//process each pair of origin & mask
+	QVector<QString>::const_iterator iter;
+	int count;
+	QFile rectpos(savePath+'/'+"rectpos.txt");//ROI: name, lefttop point, width, height
+	if (!rectpos.open(QIODevice::WriteOnly 
+		| QIODevice::Append
+		| QIODevice::Text))
+	{
+		QMessageBox::information(NULL, 
+			tr("error msg"), 
+			tr("cannot open log file!"));
+		return;
+	}
+	QTextStream txtout(&rectpos);
 
-	//------------------------
-	ipSaveImg = roiImage;
-	cvSaveImage("test.jpg", &ipSaveImg);
-	//------------------------
+	for(iter=pairNames.begin(), count=0; iter!=pairNames.end(); iter++, count++)
+	{
+		QString oriJpg = originPath+*iter+".jpg";
+		QString maskBmp = maskPath+*iter+".bmp";
+		//load origin(JPG) & mask(BMP)
+		Mat originImage = imread((const char*)oriJpg.toLocal8Bit());
+		Mat maskImage = imread((const char*)maskBmp.toLocal8Bit(), 0);
+		//find Contours
+		findContours(maskImage,
+			contours,//vector of contours
+			hierarchy,
+			CV_RETR_CCOMP,
+			CV_CHAIN_APPROX_NONE
+			);
+		if(contours.size()!=1)
+		{
+			QMessageBox::information(NULL, 
+				tr("error msg"), 
+				tr("0 or >1 contours found !")
+				);
+			continue;
+		}
+		//find minimum upright bounding rect
+		RotatedRect minRRect = minAreaRect(contours[0]);
+		minRect = minRRect.boundingRect();
+
+		Mat roiImage;
+		try
+		{
+			//save ROI as JPG in save dir
+			originImage(minRect).copyTo(roiImage);
+		}
+		catch (...)
+		{
+			//write to log
+			txtout << *iter << ' ';//name
+			txtout << "exception !" << endl;
+			continue;
+		}
+		ipSaveImg = roiImage;
+		//get save path & file name
+		QString sPath, sName;
+		int idx = iter->findRev('/');
+		sPath = savePath+iter->left(idx);
+		sName = iter->right(iter->length()-idx-1)+".jpg";
+		//(mkdir) save JPG
+		QDir tDir;
+		if(!tDir.exists(sPath))
+		{
+			tDir.mkpath(sPath);
+		}
+		cvSaveImage(sPath+'/'+sName, &ipSaveImg);
+		//write to log
+		txtout << *iter << ' ';//name
+		txtout << minRect.x << ' ' << minRect.y << ' ';//topleft point (x,y)
+		txtout << minRect.width << ' ' << minRect.height << endl;
+		//update status bar
+		statusLabel->setText("finished clipping image "+QString::number(count+1,10)+"/"+QString::number(numPairs,10));
+	}
+	//close log file
+	rectpos.close();
+
 	/*
 	cvtColor(roiImage, roiImage, CV_BGR2RGB);
 	QRoiImg = QImage((const unsigned char*)(roiImage.data),
