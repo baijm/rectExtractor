@@ -48,6 +48,9 @@ public slots:
 	//void OnExtractContourClicked();
 	void OnDrawContourClicked();
 
+	void ShowLastImage();//show last image
+	void ShowNextImage();//show next image
+
 	void OpenOriginDir();
 	void OpenMaskDir();
 	void OpenSaveDir();
@@ -55,8 +58,8 @@ public slots:
 
 public:
 	IplImage ipSaveImg;//save ROI
-	QImage QRgbImg;//for display (full)
-	QImage QRoiImg;//ROI
+	int showIdx;//index of current shown image
+	QImage *QRgbImg;//for display ROI
 
 private:
 	//widgets
@@ -64,6 +67,8 @@ private:
 	QPushButton *extractContourButton;
 	QPushButton *drawContourButton;
 	QPushButton *getRectButton;
+	QPushButton *lastImgButton;//show last image
+	QPushButton *nextImgButton;//show next image
 	QLabel *originDirHint, *originDirLabel;
 	QLabel *maskDirHint, *maskDirLabel;
 	QLabel *saveDirHint, *saveDirLabel;
@@ -71,31 +76,26 @@ private:
 	QLabel *statusLabel;//status bar
 	QMenu *fileMenu;
 	QMenu *editMenu;
+	QListWidget *pointList;
+	//actions
 	QAction *selOriginAction;
 	QAction *selMaskAction;
 	QAction *selSaveAction;
 	QAction *drawContourAction;
 	QAction *saveROIAction;
-	//----------------------------------
+	//data members
 	QString originPath;//origin dir
 	QString maskPath;//mask dir
 	QString savePath;//save extracted ROI
 	int numPairs;//total number of pairs
 	QVector<QString> pairNames;
-	//----------------------------------
-
-	//image mat
 	//Mat originImage;//BGR
 	//Mat maskImage;//BINARY
 	Mat rgbImage;//RGB
-	//Mat roiImage;//ROI
-
-	//contours
+	Mat roiImage;//ROI
 	vector<vector<Point>> contours;
 	vector<Vec4i> hierarchy;
-
-	//minimum upright bounding rect
-	Rect minRect;
+	Rect minRect;//minimum upright bounding rect
 
 private:
 	void createActions();

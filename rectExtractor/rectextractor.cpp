@@ -38,6 +38,15 @@ rectExtractor::rectExtractor(QWidget *parent, Qt::WFlags flags)
 
 	//display image
 	imgLabel = new QLabel(this);
+	//point list (result of cv::findContour)
+	pointList = new QListWidget(this);
+	//show last / next image
+	lastImgButton = new QPushButton(tr("< Last"));
+	connect(lastImgButton, SIGNAL(clicked()),
+		this, SLOT(ShowLastImage()));
+	nextImgButton = new QPushButton(tr("Next >"));
+	connect(nextImgButton, SIGNAL(clicked()),
+		this, SLOT(ShowNextImage()));
 
 	//align : origin
 	QHBoxLayout *originLayout = new QHBoxLayout;
@@ -56,13 +65,19 @@ rectExtractor::rectExtractor(QWidget *parent, Qt::WFlags flags)
 	edrLayout->addWidget(extractContourButton);
 	edrLayout->addWidget(drawContourButton);
 	edrLayout->addWidget(getRectButton);
+	//align : last, image, next, point list
+	QHBoxLayout *imgLayout = new QHBoxLayout;
+	imgLayout->addWidget(lastImgButton);
+	imgLayout->addWidget(imgLabel);
+	imgLayout->addWidget(nextImgButton);
+	imgLayout->addWidget(pointList);
 	//align : main
 	QVBoxLayout *mainLayout = new QVBoxLayout;
 	mainLayout->addLayout(originLayout);
 	mainLayout->addLayout(maskLayout);
 	mainLayout->addLayout(saveLayout);
 	mainLayout->addLayout(edrLayout);
-	mainLayout->addWidget(imgLabel);
+	mainLayout->addLayout(imgLayout);
 	mainWidget->setLayout(mainLayout);
 
 	//----------------------------------------
@@ -70,13 +85,16 @@ rectExtractor::rectExtractor(QWidget *parent, Qt::WFlags flags)
 	createMenus();
 	createStatusBar();
 	//----------------------------------------
+
+	QRgbImg = new QImage;
+	showIdx = -1;//invalid index
 }
 
 rectExtractor::~rectExtractor()
 {
 
 }
-
+//slots
 void rectExtractor::OpenOriginDir()
 {
 	QFileDialog* fileDlg = new QFileDialog(this);
@@ -131,117 +149,10 @@ void rectExtractor::OpenSaveDir()
 	}
 	else
 	{
-		QMessageBox::information(NULL, tr("error msg"), tr("no directory selected!"));
-	}
-}
-
-void rectExtractor::createActions()
-{
-	selOriginAction = new QAction(tr("&Origin Dir"), this);
-	selOriginAction->setStatusTip(tr("Open Origin Directory"));
-	connect(selOriginAction, SIGNAL(triggered()),
-		this, SLOT(OpenOriginDir()));
-	selMaskAction = new QAction(tr("&Mask Dir"), this);
-	selMaskAction->setStatusTip(tr("Open Mask Directory"));
-	connect(selMaskAction, SIGNAL(triggered()),
-		this, SLOT(OpenMaskDir()));
-	selSaveAction = new QAction(tr("&Save Dir"), this);
-	selSaveAction->setStatusTip(tr("Open Save Directory"));
-	connect(selSaveAction, SIGNAL(triggered()),
-		this, SLOT(OpenSaveDir()));
-	drawContourAction = new QAction(tr("&Draw Contour"), this);
-	drawContourAction->setStatusTip(tr("Draw Contour on Origin Image"));
-	connect(drawContourAction, SIGNAL(triggered()),
-		this, SLOT(OnDrawContourClicked()));
-	saveROIAction = new QAction(tr("Save &ROI"), this);
-	saveROIAction->setStatusTip(tr("Save ROI as JPG in Save Dir"));
-	connect(saveROIAction, SIGNAL(triggered()),
-		this, SLOT(SaveROI()));
-}
-
-void rectExtractor::createMenus()
-{
-	fileMenu = menuBar()->addMenu(tr("&File"));
-	fileMenu->addAction(selOriginAction);
-	fileMenu->addAction(selMaskAction);
-	fileMenu->addAction(selSaveAction);
-
-	editMenu = menuBar()->addMenu(tr("Edit"));
-	editMenu->addAction(drawContourAction);
-	editMenu->addAction(saveROIAction);
-}
-
-void rectExtractor::createStatusBar()
-{
-	statusLabel = new QLabel(this);
-	statusLabel->setAlignment(Qt::AlignLeft);
-	statusLabel->setIndent(3);
-	statusBar()->addWidget(statusLabel);
-}
-
-void rectExtractor::traverseDir(const QString root, const QString path, const QString extFilter)
-{
-	QDir dir(path);
-	//pairNames.clear();
-
-	//add pair name to list
-	foreach(QString imgFile, dir.entryList(extFilter, QDir::Files))
-	{
-		QString finPath = path;
-		finPath.remove(0, root.length());
-		QString finFile = imgFile;
-		finFile.remove(finFile.length()-extLen, extLen);
-		//QString finPath = path.remove(0, root.length());
-		pairNames.push_back(finPath+'/'+finFile);
-	}
-	//traverse sub-directory
-	foreach(QString subDir, dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot))
-	{
-		traverseDir(root, path+'/'+subDir, extFilter);
-	}
-}
-
-void rectExtractor::OnDrawContourClicked()
-{
-/*
-	if(originPath.isEmpty())
-	{
 		QMessageBox::information(NULL, 
 			tr("error msg"), 
-			tr("origin path is empty !"));
-		return;
+			tr("no directory selected!"));
 	}
-	if(contours.size() == 0)
-	{
-		QMessageBox::information(NULL, 
-			tr("error msg"), 
-			tr("no contours found !"));
-		return;
-	}
-	if(contours.size() > 1)
-	{
-		QMessageBox::information(NULL, 
-			tr("error msg"), 
-			tr("more than one contour found !"));
-		return;
-	}
-	rgbImage = originImage.clone();
-	drawContours(rgbImage,//draw contour on rgb image
-		contours,//all contours
-		0,//just draw the 1st one
-		CV_RGB(255,0,0),//in red
-		2//thickness of 2
-		);
-	cvtColor(rgbImage, rgbImage, CV_BGR2RGB);
-	QRgbImg = QImage((const unsigned char*)(rgbImage.data),
-		rgbImage.cols,
-		rgbImage.rows,
-		QImage::Format_RGB888);
-	imgLabel->move(0,0);
-	imgLabel->setPixmap(QPixmap::fromImage(QRgbImg));
-	imgLabel->resize(imgLabel->pixmap()->size());
-	imgLabel->show();
-	*/
 }
 
 void rectExtractor::SaveROI()
@@ -343,3 +254,119 @@ void rectExtractor::SaveROI()
 	imgLabel->show();
 	*/
 }
+
+void rectExtractor::OnDrawContourClicked()
+{
+
+}
+
+void rectExtractor::ShowLastImage()
+{
+	showIdx--;
+	if(pairNames.size()==0)
+		return;
+	if(showIdx<0)
+		showIdx = pairNames.size()-1;
+
+	QString roiName = savePath+pairNames[showIdx]+".jpg";
+
+	if (!QRgbImg->load(roiName))
+	{
+		return;
+	}
+	imgLabel->setPixmap(QPixmap::fromImage(*QRgbImg));
+}
+
+void rectExtractor::ShowNextImage()
+{
+	showIdx++;
+	if (pairNames.size()==0)
+		return;
+	if(showIdx == pairNames.size())
+		showIdx = 0;
+
+	QString roiName = savePath+pairNames[showIdx]+".jpg";
+
+	if(!QRgbImg->load(roiName))
+	{
+		return;
+	}
+	imgLabel->setPixmap(QPixmap::fromImage(*QRgbImg));
+/*
+	rgbImage = originImage.clone();
+	drawContours(rgbImage,//draw contour on rgb image
+		contours,//all contours
+		0,//just draw the 1st one
+		CV_RGB(255,0,0),//in red
+		2//thickness of 2
+		);
+*/
+}
+
+//create functions
+void rectExtractor::createActions()
+{
+	selOriginAction = new QAction(tr("&Origin Dir"), this);
+	selOriginAction->setStatusTip(tr("Open Origin Directory"));
+	connect(selOriginAction, SIGNAL(triggered()),
+		this, SLOT(OpenOriginDir()));
+	selMaskAction = new QAction(tr("&Mask Dir"), this);
+	selMaskAction->setStatusTip(tr("Open Mask Directory"));
+	connect(selMaskAction, SIGNAL(triggered()),
+		this, SLOT(OpenMaskDir()));
+	selSaveAction = new QAction(tr("&Save Dir"), this);
+	selSaveAction->setStatusTip(tr("Open Save Directory"));
+	connect(selSaveAction, SIGNAL(triggered()),
+		this, SLOT(OpenSaveDir()));
+	drawContourAction = new QAction(tr("&Draw Contour"), this);
+	drawContourAction->setStatusTip(tr("Draw Contour on Origin Image"));
+	connect(drawContourAction, SIGNAL(triggered()),
+		this, SLOT(OnDrawContourClicked()));
+	saveROIAction = new QAction(tr("Save &ROI"), this);
+	saveROIAction->setStatusTip(tr("Save ROI as JPG in Save Dir"));
+	connect(saveROIAction, SIGNAL(triggered()),
+		this, SLOT(SaveROI()));
+}
+
+void rectExtractor::createMenus()
+{
+	fileMenu = menuBar()->addMenu(tr("&File"));
+	fileMenu->addAction(selOriginAction);
+	fileMenu->addAction(selMaskAction);
+	fileMenu->addAction(selSaveAction);
+
+	editMenu = menuBar()->addMenu(tr("Edit"));
+	editMenu->addAction(drawContourAction);
+	editMenu->addAction(saveROIAction);
+}
+
+void rectExtractor::createStatusBar()
+{
+	statusLabel = new QLabel(this);
+	statusLabel->setAlignment(Qt::AlignLeft);
+	statusLabel->setIndent(3);
+	statusBar()->addWidget(statusLabel);
+}
+
+void rectExtractor::traverseDir(const QString root, const QString path, const QString extFilter)
+{
+	QDir dir(path);
+	//pairNames.clear();
+
+	//add pair name to list
+	foreach(QString imgFile, dir.entryList(extFilter, QDir::Files))
+	{
+		QString finPath = path;
+		finPath.remove(0, root.length());
+		QString finFile = imgFile;
+		finFile.remove(finFile.length()-extLen, extLen);
+		//QString finPath = path.remove(0, root.length());
+		pairNames.push_back(finPath+'/'+finFile);
+	}
+	//traverse sub-directory
+	foreach(QString subDir, dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot))
+	{
+		traverseDir(root, path+'/'+subDir, extFilter);
+	}
+}
+
