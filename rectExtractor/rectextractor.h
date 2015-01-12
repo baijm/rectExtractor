@@ -4,7 +4,6 @@
 #include <QtGui/QMainWindow>
 //#include "ui_rectextractor.h"
 
-//------------------
 #include <QtGui/QFileDialog>
 #include <QtGui/QLabel>
 #include <QtGui/QImage>
@@ -30,7 +29,6 @@
 
 using namespace std;
 using namespace cv;
-//------------------
 
 const int extLen = 4;
 const int margin = 10;
@@ -49,33 +47,44 @@ private:
 private:
 	//widgets
 	QWidget* mainWidget;
-	QPushButton *extractContourButton;
-	QPushButton *saveAutoMarkButton;
-	QPushButton *lastImgButton;//show last image
-	QPushButton *nextImgButton;//show next image
+	//-- directories
+	QLabel *originDirHint, *originDirLabel;
+	QLabel *maskDirHint, *maskDirLabel;
+	QLabel *saveOriginDirHint, *saveOriginDirLabel;
+	QLabel *saveMaskDirHint, *saveMaskDirLabel;
+	//-- modes
 	QRadioButton *clipModeButton;//clip origin & mask
 	QRadioButton *autoMarkModeButton;//auto mark clipped origin
 	QRadioButton *manualMarkModeButton;//manually mark clipped origin
 	QButtonGroup *modeButtonGroup;
-	QLabel *originDirHint, *originDirLabel;
-	QLabel *maskDirHint, *maskDirLabel;
-	QLabel *saveDirHint, *saveDirLabel;
+	//-- process buttons
+	QPushButton *extractContourButton;
+	QPushButton *saveAutoMarkButton;
+	//-- navigate pictures & picture info
+	QPushButton *lastImgButton;//show last image
+	QPushButton *nextImgButton;//show next image
 	QLabel *imgLabel;//display image
-	QLabel *statusLabel;//status bar
 	QLabel *countPoints;
+	QListWidget *pointList;
+	
+	//menus & status bar
+	QLabel *statusLabel;//status bar
 	QMenu *fileMenu;
 	QMenu *editMenu;
-	QListWidget *pointList;
+	
 	//actions
 	QAction *selOriginAction;
 	QAction *selMaskAction;
-	QAction *selSaveAction;
+	QAction *selSaveOriginAction;
+	QAction *selSaveMaskAction;
 	QAction *drawContourAction;
-	QAction *saveROIAction;
+	QAction *saveClippedAction;
+	
 	//data members
 	QString originPath;//origin dir
 	QString maskPath;//mask dir
-	QString savePath;//save extracted ROI
+	QString saveClippedOriginPath;//save extracted ROI of origin
+	QString saveClippedMaskPath;//save extracted ROI of mask
 	int numPairs;//total number of pairs
 	QVector<QString> pairNames;
 	//Mat originImage;//BGR
@@ -90,18 +99,18 @@ private:
 	QImage *QRgbImg;//for display ROI
 
 public slots:
-	//void OnOpenOriginClicked();
-	//void OnOpenMaskClicked();
+	//open dirs
+	void OpenOriginDir();
+	void OpenMaskDir();
+	void OpenSaveOriginDir();
+	void OpenSaveMaskDir();
+
 	void SwitchMode(int btnId);
 	void OnExtractContourClicked();
 
 	void ShowLastImage();//show last image
 	void ShowNextImage();//show next image
-
-	void OpenOriginDir();
-	void OpenMaskDir();
-	void OpenSaveDir();
-	void SaveROI();
+	void SaveClippedROI();
 	void OnSaveAutoMarkClicked();
 
 private:

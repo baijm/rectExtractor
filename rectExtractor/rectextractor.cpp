@@ -9,21 +9,27 @@ rectExtractor::rectExtractor(QWidget *parent, Qt::WFlags flags)
 
 	//disp origin dir
 	originDirHint = new QLabel(this);
-	originDirHint->setText(tr("Current Oirgin Dir"));
+	originDirHint->setText(tr("Oirgin Dir"));
 	originDirLabel = new QLabel(this);
 	originDirLabel->setText(tr("------------"));
 	
 	//disp mask dir
 	maskDirHint = new QLabel(this);
-	maskDirHint->setText(tr("Current Mask Dir"));
+	maskDirHint->setText(tr("Mask Dir"));
 	maskDirLabel = new QLabel(this);
 	maskDirLabel->setText(tr("------------"));
 
-	//disp save dir
-	saveDirHint = new QLabel(this);
-	saveDirHint->setText(tr("Current Save Dir"));
-	saveDirLabel = new QLabel(this);
-	saveDirLabel->setText(tr("------------"));
+	//disp clipped origin dir
+	saveOriginDirHint = new QLabel(this);
+	saveOriginDirHint->setText(tr("Save Clipped Origin Dir"));
+	saveOriginDirLabel = new QLabel(this);
+	saveOriginDirLabel->setText(tr("------------"));
+
+	//disp clipped mask dir
+	saveMaskDirHint = new QLabel(this);
+	saveMaskDirHint->setText(tr("Save Clipped Mask Dir"));
+	saveMaskDirLabel = new QLabel(this);
+	saveMaskDirLabel->setText(tr("------------"));
 
 	//select mode : clip & auto & manual
 	clipModeButton = new QRadioButton(tr("clip origin & mask"));
@@ -69,10 +75,14 @@ rectExtractor::rectExtractor(QWidget *parent, Qt::WFlags flags)
 	QHBoxLayout *maskLayout = new QHBoxLayout;
 	maskLayout->addWidget(maskDirHint);
 	maskLayout->addWidget(maskDirLabel);
-	//align : save
-	QHBoxLayout *saveLayout = new QHBoxLayout;
-	saveLayout->addWidget(saveDirHint);
-	saveLayout->addWidget(saveDirLabel);
+	//align : save origin
+	QHBoxLayout *saveOriLayout = new QHBoxLayout;
+	saveOriLayout->addWidget(saveOriginDirHint);
+	saveOriLayout->addWidget(saveOriginDirLabel);
+	//align : save mask
+	QHBoxLayout *saveMasLayout = new QHBoxLayout;
+	saveMasLayout->addWidget(saveMaskDirHint);
+	saveMasLayout->addWidget(saveMaskDirLabel);
 	//align : select mode
 	QHBoxLayout *modeLayout = new QHBoxLayout;
 	modeLayout->addWidget(clipModeButton);
@@ -93,7 +103,8 @@ rectExtractor::rectExtractor(QWidget *parent, Qt::WFlags flags)
 	QVBoxLayout *mainLayout = new QVBoxLayout;
 	mainLayout->addLayout(originLayout);
 	mainLayout->addLayout(maskLayout);
-	mainLayout->addLayout(saveLayout);
+	mainLayout->addLayout(saveOriLayout);
+	mainLayout->addLayout(saveMasLayout);
 	mainLayout->addLayout(modeLayout);//select mode
 	mainLayout->addLayout(edrLayout);
 	mainLayout->addLayout(imgLayout);
@@ -114,6 +125,8 @@ rectExtractor::~rectExtractor()
 
 }
 //slots
+
+//open dirs
 void rectExtractor::OpenOriginDir()
 {
 	QFileDialog* fileDlg = new QFileDialog(this);
@@ -144,8 +157,10 @@ void rectExtractor::OpenMaskDir()
 	{
 		maskPath = fileDlg->selectedFile();
 		maskDirLabel->setText(maskPath);
+
 		traverseDir(maskPath, maskPath, "*.bmp");
 		numPairs = pairNames.size();
+
 		statusLabel->setText("Finished Setting Mask Directory. ( "+ QString::number(numPairs,10) +" pictures )");
 	}
 	else
@@ -156,17 +171,37 @@ void rectExtractor::OpenMaskDir()
 	}
 }
 
-void rectExtractor::OpenSaveDir()
+void rectExtractor::OpenSaveOriginDir()
 {
 	QFileDialog* fileDlg = new QFileDialog(this);
-	fileDlg->setWindowTitle(tr("Open Save Directory"));
+	fileDlg->setWindowTitle(tr("Open Save Origin Directory"));
 	fileDlg->setDirectory(".");
 	fileDlg->setMode(QFileDialog::DirectoryOnly);
 	if(fileDlg->exec() == QDialog::Accepted)
 	{
-		savePath = fileDlg->selectedFile();
-		saveDirLabel->setText(savePath);
-		statusLabel->setText(tr("Finished Setting Save Directory. "));
+		saveClippedOriginPath = fileDlg->selectedFile();
+		saveOriginDirLabel->setText(saveClippedOriginPath);
+		statusLabel->setText(tr("Finished Setting Save Origin Directory. "));
+	}
+	else
+	{
+		QMessageBox::information(NULL, 
+			tr("error msg"), 
+			tr("no directory selected!"));
+	}
+}
+
+void rectExtractor::OpenSaveMaskDir()
+{
+	QFileDialog* fileDlg = new QFileDialog(this);
+	fileDlg->setWindowTitle(tr("Open Save Mask Directory"));
+	fileDlg->setDirectory(".");
+	fileDlg->setMode(QFileDialog::DirectoryOnly);
+	if(fileDlg->exec() == QDialog::Accepted)
+	{
+		saveClippedMaskPath = fileDlg->selectedFile();
+		saveMaskDirLabel->setText(saveClippedMaskPath);
+		statusLabel->setText(tr("Finished Setting Save Mask Directory. "));
 	}
 	else
 	{
@@ -178,27 +213,101 @@ void rectExtractor::OpenSaveDir()
 
 void rectExtractor::SwitchMode(int btnId)
 {
+	originPath.clear();
+	maskPath.clear();
+	saveClippedOriginPath.clear();
+	saveClippedMaskPath.clear();
+	numPairs = 0;
+	pairNames.clear();
+	contours.clear();
+	hierarchy.clear();
+	showIdx = -1;
+
 	switch(btnId)
 	{
-	case 0: 
-		QMessageBox::information(NULL, 
-			tr("info"), 
-			tr("changed mode to clipping !"));
+	case 0: //clipping origin & mask
+		originDirHint->show();
+		originDirLabel->show();
+		maskDirHint->show();
+		maskDirLabel->show();
+		saveOriginDirHint->show();
+		saveOriginDirLabel->show();
+		saveMaskDirHint->show();
+		saveMaskDirLabel->show();
+
+		extractContourButton->hide();
+		saveAutoMarkButton->hide();
+
+		imgLabel->hide();
+		countPoints->hide();
+		pointList->hide();
+
+		selOriginAction->setEnabled(true);
+		selMaskAction->setEnabled(true);
+		selSaveOriginAction->setEnabled(true);
+		selSaveMaskAction->setEnabled(true);
+		drawContourAction->setEnabled(false);
+		saveClippedAction->setEnabled(true);
+
 		break;
-	case 1:	
-		QMessageBox::information(NULL, 
-			tr("info"), 
-			tr("changed mode to auto mark !"));
+	case 1:	//auto mark
+		originDirHint->show();
+		originDirLabel->show();
+		maskDirHint->show();
+		maskDirLabel->show();
+		saveOriginDirHint->show();//TODO : setText("Save result to...")
+		saveOriginDirLabel->show();
+		saveMaskDirHint->hide();
+		saveMaskDirLabel->hide();
+
+		extractContourButton->show();
+		saveAutoMarkButton->show();
+
+		lastImgButton->show();
+		nextImgButton->show();
+		imgLabel->show();
+		countPoints->show();
+		pointList->show();
+
+		selOriginAction->setEnabled(true);
+		selMaskAction->setEnabled(true);
+		selSaveOriginAction->setEnabled(true);//TODO : setText("Save result to...")
+		selSaveMaskAction->setEnabled(false);
+		drawContourAction->setEnabled(false);//
+		saveClippedAction->setEnabled(false);//
+
 		break;
-	case 2:	
-		QMessageBox::information(NULL, 
-			tr("info"), 
-			tr("changed mode to manual mark !"));
+	case 2:	//manual mark
+		originDirHint->show();
+		originDirLabel->show();
+		maskDirHint->hide();
+		maskDirLabel->hide();
+		saveOriginDirHint->show();
+		saveOriginDirLabel->show();
+		saveMaskDirHint->hide();
+		saveMaskDirLabel->hide();
+		
+		extractContourButton->hide();
+		saveAutoMarkButton->hide();
+
+		lastImgButton->show();
+		nextImgButton->show();
+		imgLabel->show();
+		countPoints->show();
+		pointList->show();
+
+		selOriginAction->setEnabled(true);
+		selMaskAction->setEnabled(false);
+		selSaveOriginAction->setEnabled(true);
+		selSaveMaskAction->setEnabled(false);
+		drawContourAction->setEnabled(false);
+		saveClippedAction->setEnabled(false);
+
 		break;
 	}
 }
 
-void rectExtractor::SaveROI()
+void rectExtractor::SaveClippedROI()
 {
 	if(pairNames.size() == 0)
 	{
@@ -211,7 +320,7 @@ void rectExtractor::SaveROI()
 	//process each pair of origin & mask
 	QVector<QString>::const_iterator iter;
 	int count;
-	QFile rectpos(savePath+'/'+"rectpos.txt");//ROI: name, lefttop point, width, height
+	QFile rectpos(saveClippedOriginPath+'/'+"rectpos.txt");//ROI: name, lefttop point, width, height
 	if (!rectpos.open(QIODevice::WriteOnly 
 		| QIODevice::Append
 		| QIODevice::Text))
@@ -230,6 +339,7 @@ void rectExtractor::SaveROI()
 		//load origin(JPG) & mask(BMP)
 		Mat originImage = imread((const char*)oriJpg.toLocal8Bit());
 		Mat maskImage = imread((const char*)maskBmp.toLocal8Bit(), 0);
+		Mat maskImage2 = imread((const char*)maskBmp.toLocal8Bit(), 0);
 		//find Contours
 		findContours(maskImage,
 			contours,//vector of contours
@@ -253,10 +363,10 @@ void rectExtractor::SaveROI()
 		minRect.height += 2*margin;
 		minRect.width += 2*margin;
 
+		//save origin ROI as JPG in save dir
 		Mat roiImage;
 		try
 		{
-			//save ROI as JPG in save dir
 			originImage(minRect).copyTo(roiImage);
 		}
 		catch (...)
@@ -270,7 +380,7 @@ void rectExtractor::SaveROI()
 		//get save path & file name
 		QString sPath, sName;
 		int idx = iter->findRev('/');
-		sPath = savePath+iter->left(idx);
+		sPath =saveClippedOriginPath+iter->left(idx);
 		sName = iter->right(iter->length()-idx-1)+".jpg";
 		//(mkdir) save JPG
 		QDir tDir;
@@ -279,6 +389,25 @@ void rectExtractor::SaveROI()
 			tDir.mkpath(sPath);
 		}
 		cvSaveImage(sPath+'/'+sName, &ipSaveImg);
+
+		//save mask ROI as JPG in save dir
+		try{
+			maskImage2(minRect).copyTo(roiImage);
+		}catch(...)
+		{
+			continue;
+		}
+		ipSaveImg = roiImage;
+		//get save path & file name
+		sPath = saveClippedMaskPath+iter->left(idx);
+		sName = iter->right(iter->length()-idx-1)+".bmp";
+		//(mkdir) save JPG
+		if(!tDir.exists(sPath))
+		{
+			tDir.mkpath(sPath);
+		}
+		cvSaveImage(sPath+'/'+sName, &ipSaveImg);
+
 		//write to log
 		txtout << *iter << ' ';//name
 		txtout << minRect.x << ' ' << minRect.y << ' ';//topleft point (x,y)
@@ -308,16 +437,22 @@ void rectExtractor::OnExtractContourClicked()
 	{
 		return;
 	}
-	QString roiName = savePath+pairNames[showIdx]+".jpg";
-	currGrayImage = imread((const char*)roiName.toLocal8Bit(),0);
-	currImage = imread((const char*)roiName.toLocal8Bit());
+	QString originName =originPath + pairNames[showIdx] + ".jpg";
+	QString maskName = maskPath + pairNames[showIdx] + ".bmp";
+	//Mat maskImage = imread((const char*)maskBmp.toLocal8Bit(), 0);
+	currImage = imread((const char*)originName.toLocal8Bit());
+	currGrayImage = imread((const char*)maskName.toLocal8Bit(),0);
 	//find contours
 	findContours(currGrayImage,
 		contours,
 		hierarchy,
 		CV_RETR_CCOMP,
-		CV_CHAIN_APPROX_SIMPLE
+		CV_CHAIN_APPROX_NONE
 		);
+	approxPolyDP(contours[0],
+		contours[0],
+		10,//TODO : add widget
+		true);
 	
 	pointList->clear();
 	int total=0;
@@ -342,14 +477,23 @@ void rectExtractor::OnSaveAutoMarkClicked()
 		{
 			cvCircle(&ipSaveImg,
 				*pointIte,
-				2,
+				1,
 				CV_RGB(255,0,0),
 				2
 				);
 		}
 	}
-	QString autoMarkName = savePath+pairNames[showIdx]+"_auto.jpg";
-	cvSaveImage(autoMarkName, &ipSaveImg);
+	QString autoMarkName =saveClippedOriginPath+pairNames[showIdx]+".jpg";
+	int idx = pairNames[showIdx].findRev('/');
+	QString sPath = saveClippedOriginPath + pairNames[showIdx].left(idx);
+	QString sName = pairNames[showIdx].right(pairNames[showIdx].length()-idx-1)+".jpg";
+	QDir tDir;
+	if(!tDir.exists(sPath))
+	{
+		tDir.mkpath(sPath);
+	}
+	cvSaveImage(sPath+'/'+sName, &ipSaveImg);
+
 	statusLabel->setText("save auto mark to "+autoMarkName);
 
 	if (!QRgbImg->load(autoMarkName))
@@ -367,7 +511,7 @@ void rectExtractor::ShowLastImage()
 	if(showIdx<0)
 		showIdx = pairNames.size()-1;
 
-	QString roiName = savePath+pairNames[showIdx]+".jpg";
+	QString roiName =originPath+pairNames[showIdx]+".jpg";
 
 	if (!QRgbImg->load(roiName))
 	{
@@ -388,7 +532,7 @@ void rectExtractor::ShowNextImage()
 	if(showIdx == pairNames.size())
 		showIdx = 0;
 
-	QString roiName = savePath+pairNames[showIdx]+".jpg";
+	QString roiName =originPath+pairNames[showIdx]+".jpg";
 
 	if(!QRgbImg->load(roiName))
 	{
@@ -408,22 +552,31 @@ void rectExtractor::createActions()
 	selOriginAction->setStatusTip(tr("Open Origin Directory"));
 	connect(selOriginAction, SIGNAL(triggered()),
 		this, SLOT(OpenOriginDir()));
+
 	selMaskAction = new QAction(tr("&Mask Dir"), this);
 	selMaskAction->setStatusTip(tr("Open Mask Directory"));
 	connect(selMaskAction, SIGNAL(triggered()),
 		this, SLOT(OpenMaskDir()));
-	selSaveAction = new QAction(tr("&Save Dir"), this);
-	selSaveAction->setStatusTip(tr("Open Save Directory"));
-	connect(selSaveAction, SIGNAL(triggered()),
-		this, SLOT(OpenSaveDir()));
+	
+	selSaveOriginAction = new QAction(tr("&Save Origin to"), this);
+	selSaveOriginAction->setStatusTip(tr("Open Save (origin) Directory"));
+	connect(selSaveOriginAction, SIGNAL(triggered()),
+		this, SLOT(OpenSaveOriginDir()));
+
+	selSaveMaskAction = new QAction(tr("Save Mask to"), this);
+	selSaveMaskAction->setStatusTip(tr("Open Save (mask) Directory"));
+	connect(selSaveMaskAction, SIGNAL(triggered()),
+		this, SLOT(OpenSaveMaskDir()));
+	
 	drawContourAction = new QAction(tr("&Draw Contour"), this);
 	drawContourAction->setStatusTip(tr("Draw Contour on Origin Image"));
 	connect(drawContourAction, SIGNAL(triggered()),
 		this, SLOT(OnExtractContourClicked()));
-	saveROIAction = new QAction(tr("Save &ROI"), this);
-	saveROIAction->setStatusTip(tr("Save ROI as JPG in Save Dir"));
-	connect(saveROIAction, SIGNAL(triggered()),
-		this, SLOT(SaveROI()));
+	
+	saveClippedAction = new QAction(tr("Save Clipped"), this);
+	saveClippedAction->setStatusTip(tr("Save ROI (origin & mask) as JPG"));
+	connect(saveClippedAction, SIGNAL(triggered()),
+		this, SLOT(SaveClippedROI()));
 }
 
 void rectExtractor::createMenus()
@@ -431,11 +584,12 @@ void rectExtractor::createMenus()
 	fileMenu = menuBar()->addMenu(tr("&File"));
 	fileMenu->addAction(selOriginAction);
 	fileMenu->addAction(selMaskAction);
-	fileMenu->addAction(selSaveAction);
+	fileMenu->addAction(selSaveOriginAction);
+	fileMenu->addAction(selSaveMaskAction);
 
 	editMenu = menuBar()->addMenu(tr("Edit"));
 	editMenu->addAction(drawContourAction);
-	editMenu->addAction(saveROIAction);
+	editMenu->addAction(saveClippedAction);
 }
 
 void rectExtractor::createStatusBar()
