@@ -10,6 +10,8 @@
 #include <QtGui/QImage>
 #include <QtGui/QMessageBox>
 #include <QtGui/QPushButton>
+#include <QtGui/QRadioButton>
+#include <QtGui/QButtonGroup>
 #include <QtGui/QVBoxLayout>
 #include <QtGui/QPainter>
 #include <QtGui/QAction>
@@ -31,6 +33,7 @@ using namespace cv;
 //------------------
 
 const int extLen = 4;
+const int margin = 10;
 
 class rectExtractor : public QMainWindow
 {
@@ -42,38 +45,24 @@ public:
 
 private:
 	//Ui::rectExtractorClass ui;
-public slots:
-	//void OnOpenOriginClicked();
-	//void OnOpenMaskClicked();
-	//void OnExtractContourClicked();
-	void OnDrawContourClicked();
-
-	void ShowLastImage();//show last image
-	void ShowNextImage();//show next image
-
-	void OpenOriginDir();
-	void OpenMaskDir();
-	void OpenSaveDir();
-	void SaveROI();
-
-public:
-	IplImage ipSaveImg;//save ROI
-	int showIdx;//index of current shown image
-	QImage *QRgbImg;//for display ROI
 
 private:
 	//widgets
 	QWidget* mainWidget;
 	QPushButton *extractContourButton;
-	QPushButton *drawContourButton;
-	QPushButton *getRectButton;
+	QPushButton *saveAutoMarkButton;
 	QPushButton *lastImgButton;//show last image
 	QPushButton *nextImgButton;//show next image
+	QRadioButton *clipModeButton;//clip origin & mask
+	QRadioButton *autoMarkModeButton;//auto mark clipped origin
+	QRadioButton *manualMarkModeButton;//manually mark clipped origin
+	QButtonGroup *modeButtonGroup;
 	QLabel *originDirHint, *originDirLabel;
 	QLabel *maskDirHint, *maskDirLabel;
 	QLabel *saveDirHint, *saveDirLabel;
 	QLabel *imgLabel;//display image
 	QLabel *statusLabel;//status bar
+	QLabel *countPoints;
 	QMenu *fileMenu;
 	QMenu *editMenu;
 	QListWidget *pointList;
@@ -91,11 +80,29 @@ private:
 	QVector<QString> pairNames;
 	//Mat originImage;//BGR
 	//Mat maskImage;//BINARY
-	Mat rgbImage;//RGB
-	Mat roiImage;//ROI
+	Mat currGrayImage;//current grayscale ROI (for drawing points)
+	Mat currImage;//current color ROI
 	vector<vector<Point>> contours;
 	vector<Vec4i> hierarchy;
 	Rect minRect;//minimum upright bounding rect
+	IplImage ipSaveImg;//save ROI
+	int showIdx;//index of current shown image
+	QImage *QRgbImg;//for display ROI
+
+public slots:
+	//void OnOpenOriginClicked();
+	//void OnOpenMaskClicked();
+	void SwitchMode(int btnId);
+	void OnExtractContourClicked();
+
+	void ShowLastImage();//show last image
+	void ShowNextImage();//show next image
+
+	void OpenOriginDir();
+	void OpenMaskDir();
+	void OpenSaveDir();
+	void SaveROI();
+	void OnSaveAutoMarkClicked();
 
 private:
 	void createActions();

@@ -25,21 +25,34 @@ rectExtractor::rectExtractor(QWidget *parent, Qt::WFlags flags)
 	saveDirLabel = new QLabel(this);
 	saveDirLabel->setText(tr("------------"));
 
+	//select mode : clip & auto & manual
+	clipModeButton = new QRadioButton(tr("clip origin & mask"));
+	autoMarkModeButton = new QRadioButton(tr("auto mark"));
+	manualMarkModeButton = new QRadioButton(tr("manual mark"));
+	modeButtonGroup = new QButtonGroup();
+	modeButtonGroup->addButton(clipModeButton, 0);
+	modeButtonGroup->addButton(autoMarkModeButton, 1);
+	modeButtonGroup->addButton(manualMarkModeButton, 2);
+	connect(modeButtonGroup, SIGNAL(buttonClicked(int)),
+		this, SLOT(SwitchMode(int)));
+
 	//extract, draw, get rect
 	extractContourButton = new QPushButton(tr("Extract Contour"));
 	connect(extractContourButton, SIGNAL(clicked()),
 		this, SLOT(OnExtractContourClicked()));
-	drawContourButton = new QPushButton(tr("Draw Contour"));
-	connect(drawContourButton, SIGNAL(clicked()),
-		this, SLOT(OnDrawContourClicked()));
-	getRectButton = new QPushButton(tr("Get Rect"));
-	connect(getRectButton, SIGNAL(clicked()),
-		this, SLOT(SaveROI()));
+	saveAutoMarkButton = new QPushButton(tr("Save Auto Mark"));
+	connect(saveAutoMarkButton, SIGNAL(clicked()),
+		this, SLOT(OnSaveAutoMarkClicked()));
+	//connect
+	countPoints = new QLabel(this);
+	countPoints->setText(tr("total xxxx points"));
 
 	//display image
 	imgLabel = new QLabel(this);
 	//point list (result of cv::findContour)
 	pointList = new QListWidget(this);
+	pointList->setFixedWidth(100);
+
 	//show last / next image
 	lastImgButton = new QPushButton(tr("< Last"));
 	connect(lastImgButton, SIGNAL(clicked()),
@@ -60,11 +73,16 @@ rectExtractor::rectExtractor(QWidget *parent, Qt::WFlags flags)
 	QHBoxLayout *saveLayout = new QHBoxLayout;
 	saveLayout->addWidget(saveDirHint);
 	saveLayout->addWidget(saveDirLabel);
-	//align : extract, draw, rect
+	//align : select mode
+	QHBoxLayout *modeLayout = new QHBoxLayout;
+	modeLayout->addWidget(clipModeButton);
+	modeLayout->addWidget(autoMarkModeButton);
+	modeLayout->addWidget(manualMarkModeButton);
+	//align : extract, draw
 	QHBoxLayout *edrLayout = new QHBoxLayout;
 	edrLayout->addWidget(extractContourButton);
-	edrLayout->addWidget(drawContourButton);
-	edrLayout->addWidget(getRectButton);
+	edrLayout->addWidget(saveAutoMarkButton);
+	edrLayout->addWidget(countPoints);
 	//align : last, image, next, point list
 	QHBoxLayout *imgLayout = new QHBoxLayout;
 	imgLayout->addWidget(lastImgButton);
@@ -76,6 +94,7 @@ rectExtractor::rectExtractor(QWidget *parent, Qt::WFlags flags)
 	mainLayout->addLayout(originLayout);
 	mainLayout->addLayout(maskLayout);
 	mainLayout->addLayout(saveLayout);
+	mainLayout->addLayout(modeLayout);//select mode
 	mainLayout->addLayout(edrLayout);
 	mainLayout->addLayout(imgLayout);
 	mainWidget->setLayout(mainLayout);
@@ -109,7 +128,9 @@ void rectExtractor::OpenOriginDir()
 	}
 	else
 	{
-		QMessageBox::information(NULL, tr("error msg"), tr("no directory selected!"));
+		QMessageBox::information(NULL, 
+			tr("error msg"), 
+			tr("no directory selected!"));
 	}
 }
 
@@ -152,6 +173,28 @@ void rectExtractor::OpenSaveDir()
 		QMessageBox::information(NULL, 
 			tr("error msg"), 
 			tr("no directory selected!"));
+	}
+}
+
+void rectExtractor::SwitchMode(int btnId)
+{
+	switch(btnId)
+	{
+	case 0: 
+		QMessageBox::information(NULL, 
+			tr("info"), 
+			tr("changed mode to clipping !"));
+		break;
+	case 1:	
+		QMessageBox::information(NULL, 
+			tr("info"), 
+			tr("changed mode to auto mark !"));
+		break;
+	case 2:	
+		QMessageBox::information(NULL, 
+			tr("info"), 
+			tr("changed mode to manual mark !"));
+		break;
 	}
 }
 
@@ -205,6 +248,10 @@ void rectExtractor::SaveROI()
 		//find minimum upright bounding rect
 		RotatedRect minRRect = minAreaRect(contours[0]);
 		minRect = minRRect.boundingRect();
+		minRect.x -= margin;//expand bouding rect to contain antenna
+		minRect.y -= margin;
+		minRect.height += 2*margin;
+		minRect.width += 2*margin;
 
 		Mat roiImage;
 		try
@@ -255,9 +302,61 @@ void rectExtractor::SaveROI()
 	*/
 }
 
-void rectExtractor::OnDrawContourClicked()
+void rectExtractor::OnExtractContourClicked()
 {
+	if(showIdx<0 || showIdx==pairNames.size())
+	{
+		return;
+	}
+	QString roiName = savePath+pairNames[showIdx]+".jpg";
+	currGrayImage = imread((const char*)roiName.toLocal8Bit(),0);
+	currImage = imread((const char*)roiName.toLocal8Bit());
+	//find contours
+	findContours(currGrayImage,
+		contours,
+		hierarchy,
+		CV_RETR_CCOMP,
+		CV_CHAIN_APPROX_SIMPLE
+		);
+	
+	pointList->clear();
+	int total=0;
+	for(vector<vector<Point>>::const_iterator allConIte = contours.begin(); allConIte!= contours.end(); allConIte++)
+	{
+		for(vector<Point>::const_iterator pointIte = allConIte->begin(); pointIte != allConIte->end(); pointIte++)
+		{
+			pointList->addItem("x:"+QString::number(pointIte->x)+"  y:"+QString::number(pointIte->y));
+			total++;
+		}
+	}
+	countPoints->setText(tr("total "+QString::number(total)+" points"));
+	statusLabel->setText(tr("extract contour points finished"));
+}
 
+void rectExtractor::OnSaveAutoMarkClicked()
+{
+	ipSaveImg = currImage;
+	for(vector<vector<Point>>::const_iterator allConIte = contours.begin(); allConIte!= contours.end(); allConIte++)
+	{
+		for(vector<Point>::const_iterator pointIte = allConIte->begin(); pointIte != allConIte->end(); pointIte++)
+		{
+			cvCircle(&ipSaveImg,
+				*pointIte,
+				2,
+				CV_RGB(255,0,0),
+				2
+				);
+		}
+	}
+	QString autoMarkName = savePath+pairNames[showIdx]+"_auto.jpg";
+	cvSaveImage(autoMarkName, &ipSaveImg);
+	statusLabel->setText("save auto mark to "+autoMarkName);
+
+	if (!QRgbImg->load(autoMarkName))
+	{
+		return;
+	}
+	imgLabel->setPixmap(QPixmap::fromImage(*QRgbImg));
 }
 
 void rectExtractor::ShowLastImage()
@@ -275,6 +374,10 @@ void rectExtractor::ShowLastImage()
 		return;
 	}
 	imgLabel->setPixmap(QPixmap::fromImage(*QRgbImg));
+
+	pointList->clear();
+	countPoints->setText(tr("total xxxx points"));
+	statusLabel->setText(roiName);
 }
 
 void rectExtractor::ShowNextImage()
@@ -292,15 +395,10 @@ void rectExtractor::ShowNextImage()
 		return;
 	}
 	imgLabel->setPixmap(QPixmap::fromImage(*QRgbImg));
-/*
-	rgbImage = originImage.clone();
-	drawContours(rgbImage,//draw contour on rgb image
-		contours,//all contours
-		0,//just draw the 1st one
-		CV_RGB(255,0,0),//in red
-		2//thickness of 2
-		);
-*/
+
+	pointList->clear();
+	countPoints->setText(tr("total xxxx points"));
+	statusLabel->setText(roiName);
 }
 
 //create functions
@@ -321,7 +419,7 @@ void rectExtractor::createActions()
 	drawContourAction = new QAction(tr("&Draw Contour"), this);
 	drawContourAction->setStatusTip(tr("Draw Contour on Origin Image"));
 	connect(drawContourAction, SIGNAL(triggered()),
-		this, SLOT(OnDrawContourClicked()));
+		this, SLOT(OnExtractContourClicked()));
 	saveROIAction = new QAction(tr("Save &ROI"), this);
 	saveROIAction->setStatusTip(tr("Save ROI as JPG in Save Dir"));
 	connect(saveROIAction, SIGNAL(triggered()),
