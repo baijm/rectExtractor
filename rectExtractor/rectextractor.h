@@ -19,6 +19,9 @@
 #include <QtGui/QStatusBar>
 #include <QtGui/QListWidget>
 
+#include <QtGui/QMouseEvent>
+#include <QtGui/QKeyEvent>
+
 #include <QtCore/QFile>
 #include <QtCore/QTextStream>
 #include <QtCore/QIODevice>
@@ -57,9 +60,13 @@ private:
 	QRadioButton *autoMarkModeButton;//auto mark clipped origin
 	QRadioButton *manualMarkModeButton;//manually mark clipped origin
 	QButtonGroup *modeButtonGroup;
-	//-- process buttons
+	//-- auto mark buttons
 	QPushButton *extractContourButton;
 	QPushButton *saveAutoMarkButton;
+	//-- manual mark buttons
+	QPushButton *skipPointButton;//(NaN,NaN)
+	QPushButton *delPointButton;//delete point
+	QPushButton *saveTxtButton;//save to txt file
 	//-- navigate pictures & picture info
 	QPushButton *lastImgButton;//show last image
 	QPushButton *nextImgButton;//show next image
@@ -77,8 +84,7 @@ private:
 	QAction *selMaskAction;
 	QAction *selSaveOriginAction;
 	QAction *selSaveMaskAction;
-	QAction *drawContourAction;
-	QAction *saveClippedAction;
+	QAction *saveClippedAllAction;
 	
 	//data members
 	QString originPath;//origin dir
@@ -87,6 +93,7 @@ private:
 	QString saveClippedMaskPath;//save extracted ROI of mask
 	int numPairs;//total number of pairs
 	QVector<QString> pairNames;
+	map<string, string> nameTL;//map name to TL pos
 	//Mat originImage;//BGR
 	//Mat maskImage;//BINARY
 	Mat currGrayImage;//current grayscale ROI (for drawing points)
@@ -94,6 +101,7 @@ private:
 	vector<vector<Point>> contours;
 	vector<Vec4i> hierarchy;
 	Rect minRect;//minimum upright bounding rect
+	Point TLpos;//top left coordinates
 	IplImage ipSaveImg;//save ROI
 	int showIdx;//index of current shown image
 	QImage *QRgbImg;//for display ROI
@@ -104,20 +112,35 @@ public slots:
 	void OpenMaskDir();
 	void OpenSaveOriginDir();
 	void OpenSaveMaskDir();
-
 	void SwitchMode(int btnId);
-	void OnExtractContourClicked();
 
 	void ShowLastImage();//show last image
 	void ShowNextImage();//show next image
+	
+	//clipping
 	void SaveClippedROI();
+
+	//auto mark
+	void OnExtractContourClicked();
 	void OnSaveAutoMarkClicked();
+
+	//manual mark
+	void OnDelPointClicked();
+	void OnSkipPointClicked();
+	void OnSaveTxtClicked();
+
+protected:
+	void mouseMoveEvent(QMouseEvent *);//for manual marking
+	void mousePressEvent(QMouseEvent *);//for manual marking
+	void keyPressEvent(QKeyEvent *);//for manual marking
+	void paintEvent(QPaintEvent *);
 
 private:
 	void createActions();
 	void createMenus();
 	void createStatusBar();
 	void traverseDir(const QString root, const QString path, const QString extFilter);
+	void loadRectTL(const QString path);
 };
 
 #endif // RECTEXTRACTOR_H

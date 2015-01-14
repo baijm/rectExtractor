@@ -42,22 +42,23 @@ rectExtractor::rectExtractor(QWidget *parent, Qt::WFlags flags)
 	connect(modeButtonGroup, SIGNAL(buttonClicked(int)),
 		this, SLOT(SwitchMode(int)));
 
-	//extract, draw, get rect
+	//auto mark tools
 	extractContourButton = new QPushButton(tr("Extract Contour"));
 	connect(extractContourButton, SIGNAL(clicked()),
 		this, SLOT(OnExtractContourClicked()));
 	saveAutoMarkButton = new QPushButton(tr("Save Auto Mark"));
 	connect(saveAutoMarkButton, SIGNAL(clicked()),
 		this, SLOT(OnSaveAutoMarkClicked()));
-	//connect
+
+	//num of points
 	countPoints = new QLabel(this);
 	countPoints->setText(tr("total xxxx points"));
-
 	//display image
 	imgLabel = new QLabel(this);
-	//point list (result of cv::findContour)
+	imgLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+	//point list
 	pointList = new QListWidget(this);
-	pointList->setFixedWidth(100);
+	pointList->setFixedWidth(200);
 
 	//show last / next image
 	lastImgButton = new QPushButton(tr("< Last"));
@@ -66,6 +67,17 @@ rectExtractor::rectExtractor(QWidget *parent, Qt::WFlags flags)
 	nextImgButton = new QPushButton(tr("Next >"));
 	connect(nextImgButton, SIGNAL(clicked()),
 		this, SLOT(ShowNextImage()));
+
+	//manual mark tools
+	delPointButton = new QPushButton(tr("Del Last"));
+	connect(delPointButton, SIGNAL(clicked()),
+		this, SLOT(OnDelPointClicked()));
+	skipPointButton = new QPushButton(tr("Skip"));
+	connect(skipPointButton, SIGNAL(clicked()),
+		this, SLOT(OnSkipPointClicked()));
+	saveTxtButton = new QPushButton(tr("Save txt"));
+	connect(saveTxtButton, SIGNAL(clicked()),
+		this, SLOT(OnSaveTxtClicked()));
 
 	//align : origin
 	QHBoxLayout *originLayout = new QHBoxLayout;
@@ -92,13 +104,19 @@ rectExtractor::rectExtractor(QWidget *parent, Qt::WFlags flags)
 	QHBoxLayout *edrLayout = new QHBoxLayout;
 	edrLayout->addWidget(extractContourButton);
 	edrLayout->addWidget(saveAutoMarkButton);
-	edrLayout->addWidget(countPoints);
-	//align : last, image, next, point list
+	//align : points count & point list
+	QVBoxLayout *pointLayout = new QVBoxLayout;
+	pointLayout->addWidget(countPoints);
+	pointLayout->addWidget(pointList);
+	pointLayout->addWidget(delPointButton);
+	pointLayout->addWidget(skipPointButton);
+	pointLayout->addWidget(saveTxtButton);
+	//align : last, image, next, point
 	QHBoxLayout *imgLayout = new QHBoxLayout;
 	imgLayout->addWidget(lastImgButton);
 	imgLayout->addWidget(imgLabel);
 	imgLayout->addWidget(nextImgButton);
-	imgLayout->addWidget(pointList);
+	imgLayout->addLayout(pointLayout);
 	//align : main
 	QVBoxLayout *mainLayout = new QVBoxLayout;
 	mainLayout->addLayout(originLayout);
@@ -126,7 +144,6 @@ rectExtractor::~rectExtractor()
 }
 //slots
 
-//open dirs
 void rectExtractor::OpenOriginDir()
 {
 	QFileDialog* fileDlg = new QFileDialog(this);
@@ -137,7 +154,17 @@ void rectExtractor::OpenOriginDir()
 	{
 		originPath = fileDlg->selectedFile();
 		originDirLabel->setText(originPath);
-		statusLabel->setText(tr("Finished Setting Origin Directory."));
+
+		if(modeButtonGroup->checkedId() == 2)//manual marking
+		{
+			traverseDir(originPath, originPath, "*.jpg");
+			numPairs = pairNames.size();
+
+			//load rect TL pos
+			loadRectTL(originPath);
+		}
+
+		statusLabel->setText("Finished Setting Origin Directory. ( "+ QString::number(numPairs,10) +" pictures )");
 	}
 	else
 	{
@@ -226,82 +253,78 @@ void rectExtractor::SwitchMode(int btnId)
 	switch(btnId)
 	{
 	case 0: //clipping origin & mask
-		originDirHint->show();
-		originDirLabel->show();
 		maskDirHint->show();
 		maskDirLabel->show();
-		saveOriginDirHint->show();
-		saveOriginDirLabel->show();
 		saveMaskDirHint->show();
 		saveMaskDirLabel->show();
 
 		extractContourButton->hide();
 		saveAutoMarkButton->hide();
 
-		imgLabel->hide();
-		countPoints->hide();
-		pointList->hide();
+		lastImgButton->setEnabled(false);
+		nextImgButton->setEnabled(false);
+		imgLabel->setEnabled(false);
+		countPoints->setEnabled(false);
+		pointList->setEnabled(false);
+		delPointButton->setEnabled(false);
+		skipPointButton->setEnabled(false);
+		saveTxtButton->setEnabled(false);
 
-		selOriginAction->setEnabled(true);
 		selMaskAction->setEnabled(true);
-		selSaveOriginAction->setEnabled(true);
 		selSaveMaskAction->setEnabled(true);
-		drawContourAction->setEnabled(false);
-		saveClippedAction->setEnabled(true);
+		saveClippedAllAction->setEnabled(true);
+
+		setMouseTracking(false);
 
 		break;
 	case 1:	//auto mark
-		originDirHint->show();
-		originDirLabel->show();
 		maskDirHint->show();
 		maskDirLabel->show();
-		saveOriginDirHint->show();//TODO : setText("Save result to...")
-		saveOriginDirLabel->show();
 		saveMaskDirHint->hide();
 		saveMaskDirLabel->hide();
 
 		extractContourButton->show();
 		saveAutoMarkButton->show();
 
-		lastImgButton->show();
-		nextImgButton->show();
-		imgLabel->show();
-		countPoints->show();
-		pointList->show();
+		lastImgButton->setEnabled(true);
+		nextImgButton->setEnabled(true);
+		imgLabel->setEnabled(true);
+		countPoints->setEnabled(true);
+		pointList->setEnabled(true);
+		delPointButton->setEnabled(false);
+		skipPointButton->setEnabled(false);
+		saveTxtButton->setEnabled(false);
 
-		selOriginAction->setEnabled(true);
 		selMaskAction->setEnabled(true);
-		selSaveOriginAction->setEnabled(true);//TODO : setText("Save result to...")
 		selSaveMaskAction->setEnabled(false);
-		drawContourAction->setEnabled(false);//
-		saveClippedAction->setEnabled(false);//
+		saveClippedAllAction->setEnabled(false);//
+
+		setMouseTracking(false);
 
 		break;
 	case 2:	//manual mark
-		originDirHint->show();
-		originDirLabel->show();
 		maskDirHint->hide();
 		maskDirLabel->hide();
-		saveOriginDirHint->show();
-		saveOriginDirLabel->show();
 		saveMaskDirHint->hide();
 		saveMaskDirLabel->hide();
 		
 		extractContourButton->hide();
 		saveAutoMarkButton->hide();
 
-		lastImgButton->show();
-		nextImgButton->show();
-		imgLabel->show();
-		countPoints->show();
-		pointList->show();
+		lastImgButton->setEnabled(true);
+		nextImgButton->setEnabled(true);
+		imgLabel->setEnabled(true);
+		countPoints->setEnabled(true);
+		pointList->setEnabled(true);
+		delPointButton->setEnabled(true);
+		skipPointButton->setEnabled(true);
+		saveTxtButton->setEnabled(true);
 
-		selOriginAction->setEnabled(true);
 		selMaskAction->setEnabled(false);
-		selSaveOriginAction->setEnabled(true);
 		selSaveMaskAction->setEnabled(false);
-		drawContourAction->setEnabled(false);
-		saveClippedAction->setEnabled(false);
+		saveClippedAllAction->setEnabled(false);
+
+		setMouseTracking(true);
 
 		break;
 	}
@@ -417,18 +440,6 @@ void rectExtractor::SaveClippedROI()
 	}
 	//close log file
 	rectpos.close();
-
-	/*
-	cvtColor(roiImage, roiImage, CV_BGR2RGB);
-	QRoiImg = QImage((const unsigned char*)(roiImage.data),
-		roiImage.cols,
-		roiImage.rows,
-		QImage::Format_RGB888);
-	imgLabel->move(0,0);
-	imgLabel->setPixmap(QPixmap::fromImage(QRoiImg));
-	imgLabel->resize(imgLabel->pixmap()->size());
-	imgLabel->show();
-	*/
 }
 
 void rectExtractor::OnExtractContourClicked()
@@ -503,6 +514,43 @@ void rectExtractor::OnSaveAutoMarkClicked()
 	imgLabel->setPixmap(QPixmap::fromImage(*QRgbImg));
 }
 
+void rectExtractor::OnDelPointClicked()
+{
+	int lastIdx = pointList->count()-1;
+	if(lastIdx < 0)
+		return;
+	pointList->takeItem(lastIdx);
+	//pointList->AboveItem
+}
+
+void rectExtractor::OnSkipPointClicked()
+{
+	pointList->addItem(QString::number(pointList->count()+1)
+		+"\t"
+		+"x:NaN"
+		+"\t"
+		+"y:NaN"
+		);
+}
+
+void rectExtractor::OnSaveTxtClicked()
+{
+	if(saveClippedOriginPath.isEmpty())
+	{
+		QMessageBox::information(NULL, 
+			tr("error msg"), 
+			tr("save path not set !"));
+		return;
+	}
+	
+	for(int i=0; i<pointList->count(); i++)
+	{
+		QListWidgetItem* ptrItm = pointList->item(i);
+		QString itemText = ptrItm->text();
+		/*TODO : save to TXT*/
+	}
+}
+
 void rectExtractor::ShowLastImage()
 {
 	showIdx--;
@@ -517,11 +565,30 @@ void rectExtractor::ShowLastImage()
 	{
 		return;
 	}
+	imgLabel->move(0,0);
 	imgLabel->setPixmap(QPixmap::fromImage(*QRgbImg));
+	imgLabel->resize(imgLabel->pixmap()->size());
+	update();//---------------------
 
 	pointList->clear();
 	countPoints->setText(tr("total xxxx points"));
 	statusLabel->setText(roiName);
+
+	if(modeButtonGroup->checkedId()==2
+		&& nameTL.size()!=0)
+	{
+		map<string, string>::const_iterator mapIte;
+		mapIte = nameTL.find(pairNames[showIdx].toStdString());
+		if(mapIte == nameTL.end())
+		{
+			TLpos.x = TLpos.y = 0;
+			return;
+		}
+		int pX,pY;
+		sscanf(mapIte->second.c_str(),"%d %d", &pX,&pY);
+		TLpos.x = pX;
+		TLpos.y = pY;
+	}
 }
 
 void rectExtractor::ShowNextImage()
@@ -538,11 +605,30 @@ void rectExtractor::ShowNextImage()
 	{
 		return;
 	}
+	imgLabel->move(0,0);
 	imgLabel->setPixmap(QPixmap::fromImage(*QRgbImg));
+	imgLabel->resize(imgLabel->pixmap()->size());
+	update();//-------------------------
 
 	pointList->clear();
 	countPoints->setText(tr("total xxxx points"));
 	statusLabel->setText(roiName);
+
+	if(modeButtonGroup->checkedId()==2
+		&& nameTL.size()!=0)
+	{
+		map<string, string>::const_iterator mapIte;
+		mapIte = nameTL.find(pairNames[showIdx].toStdString());
+		if(mapIte == nameTL.end())
+		{
+			TLpos.x = TLpos.y = 0;
+			return;
+		}
+		int pX,pY;
+		sscanf(mapIte->second.c_str(),"%d %d", &pX,&pY);
+		TLpos.x = pX;
+		TLpos.y = pY;
+	}
 }
 
 //create functions
@@ -568,14 +654,9 @@ void rectExtractor::createActions()
 	connect(selSaveMaskAction, SIGNAL(triggered()),
 		this, SLOT(OpenSaveMaskDir()));
 	
-	drawContourAction = new QAction(tr("&Draw Contour"), this);
-	drawContourAction->setStatusTip(tr("Draw Contour on Origin Image"));
-	connect(drawContourAction, SIGNAL(triggered()),
-		this, SLOT(OnExtractContourClicked()));
-	
-	saveClippedAction = new QAction(tr("Save Clipped"), this);
-	saveClippedAction->setStatusTip(tr("Save ROI (origin & mask) as JPG"));
-	connect(saveClippedAction, SIGNAL(triggered()),
+	saveClippedAllAction = new QAction(tr("Save Clipped"), this);
+	saveClippedAllAction->setStatusTip(tr("Save ROI (origin & mask) as JPG"));
+	connect(saveClippedAllAction, SIGNAL(triggered()),
 		this, SLOT(SaveClippedROI()));
 }
 
@@ -588,8 +669,7 @@ void rectExtractor::createMenus()
 	fileMenu->addAction(selSaveMaskAction);
 
 	editMenu = menuBar()->addMenu(tr("Edit"));
-	editMenu->addAction(drawContourAction);
-	editMenu->addAction(saveClippedAction);
+	editMenu->addAction(saveClippedAllAction);
 }
 
 void rectExtractor::createStatusBar()
@@ -622,3 +702,120 @@ void rectExtractor::traverseDir(const QString root, const QString path, const QS
 	}
 }
 
+void rectExtractor::loadRectTL(const QString path)
+{
+	nameTL.clear();
+
+	QString posFile = path+'/'+"rectpos.txt";
+	QFile file(posFile);
+	if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
+	{
+		QMessageBox::information(NULL, 
+			tr("error msg"), 
+			tr("cannot open log file!"));
+		return;
+	}
+
+	QTextStream txtin(&file);
+	while(!txtin.atEnd())
+	{
+		QString line = txtin.readLine();
+		QStringList fields = line.split(' ');
+		if(fields.size()<5)
+			continue;
+		string name = fields.takeFirst().toStdString();
+		string tlXY = fields.takeFirst().toStdString();
+		tlXY = tlXY+' '+fields.takeFirst().toStdString();
+		nameTL.insert(pair<string,string>(name,tlXY));
+	}
+}
+
+//handle mouse & key events
+void rectExtractor::mouseMoveEvent(QMouseEvent *event)
+{
+	if(modeButtonGroup->checkedId() == 2)//manual marking
+	{	
+		QPoint mousePoint = event->pos();
+		QPoint imgTL = imgLabel->geometry().topLeft();
+		int menuHeight = menuBar()->height();
+
+		statusLabel->setText("( "
+			+QString::number(mousePoint.x()-imgTL.x())
+			+" , "
+			+QString::number(mousePoint.y()-menuHeight-imgTL.y())
+			+" )");
+	}
+}
+
+void rectExtractor::mousePressEvent(QMouseEvent *event)
+{
+	if (modeButtonGroup->checkedId() == 2)//manual marking
+	{
+		QPoint mousePoint = event->pos();
+		QPoint imgTL = imgLabel->geometry().topLeft();
+		int menuHeight = menuBar()->height();
+
+		int imgX = mousePoint.x()-imgTL.x();
+		int imgY = mousePoint.y()-menuHeight-imgTL.y();
+
+		if ( imgX<0
+			| imgX>imgLabel->pixmap()->width()
+			| imgY<0
+			| imgY>imgLabel->pixmap()->height())
+		{
+			return;
+		}
+
+		pointList->addItem(QString::number(pointList->count()+1)
+			+"\t"
+			+"x:"+QString::number(imgX+TLpos.x)
+			+"\t"
+			+"y:"+QString::number(imgY+TLpos.y)
+			);
+	}
+}
+
+void rectExtractor::keyPressEvent(QKeyEvent *event)
+{
+	if(modeButtonGroup->checkedId() == 2)//manual mark
+	{
+
+	}
+}
+
+void rectExtractor::paintEvent(QPaintEvent *event)
+{
+	if(modeButtonGroup->checkedId() > 0)
+	{
+		QPainter painter(this);
+		QPen pen;
+		pen.setColor(Qt::darkGreen);
+		pen.setWidth(3);
+		painter.setPen(pen);
+
+		int menuHeight = menuBar()->height();
+
+		painter.drawLine(imgLabel->geometry().topLeft().x(),
+			imgLabel->geometry().topLeft().y()+menuHeight,
+			imgLabel->geometry().bottomLeft().x(),
+			imgLabel->geometry().bottomLeft().y()+menuHeight
+			);
+		painter.drawLine(imgLabel->geometry().topRight().x(),
+			imgLabel->geometry().topRight().y()+menuHeight,
+			imgLabel->geometry().bottomRight().x(),
+			imgLabel->geometry().bottomRight().y()+menuHeight
+			);
+		painter.drawLine(imgLabel->geometry().topLeft().x(),
+			imgLabel->geometry().topLeft().y()+menuHeight,
+			imgLabel->geometry().topRight().x(),
+			imgLabel->geometry().topRight().y()+menuHeight
+			);
+		painter.drawLine(imgLabel->geometry().bottomLeft().x(),
+			imgLabel->geometry().bottomLeft().y()+menuHeight,
+			imgLabel->geometry().bottomRight().x(),
+			imgLabel->geometry().bottomRight().y()+menuHeight
+			);
+
+		painter.end();
+	}
+}
