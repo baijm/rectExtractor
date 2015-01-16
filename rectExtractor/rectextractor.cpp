@@ -542,13 +542,52 @@ void rectExtractor::OnSaveTxtClicked()
 			tr("save path not set !"));
 		return;
 	}
+	if(pairNames.size()==0 || showIdx<0 || showIdx==pairNames.size())
+	{
+		QMessageBox::information(NULL, 
+			tr("error msg"), 
+			tr("no files loaded || show index invalid !"));
+		return;
+	}
 	
+	QString fileName = saveClippedOriginPath+pairNames[showIdx]+".txt";
+	
+	//mkdir
+	int idx = fileName.findRev('/');
+	QString filePath = fileName.left(idx);
+	QDir tDir;
+	if(!tDir.exists(filePath))
+	{
+		tDir.mkpath(filePath);
+	}	
+	
+	//open txt file
+	QFile txtFile(fileName);
+	if (!txtFile.open(QIODevice::WriteOnly
+		| QIODevice::Text))
+	{
+		QMessageBox::information(NULL, 
+			tr("error msg"), 
+			tr("cannot open mark file!"));
+		return;
+	}
+	QTextStream txtout(&txtFile);
+
+	//write to txt file
 	for(int i=0; i<pointList->count(); i++)
 	{
 		QListWidgetItem* ptrItm = pointList->item(i);
 		QString itemText = ptrItm->text();
-		/*TODO : save to TXT*/
+		QStringList segs = itemText.split('\t');
+		QString x = segs[1].mid(2);//x:aaa -> aaa
+		QString y = segs[2].mid(2);//y:bbb -> bbb
+		//write coordinates : x\ty
+		txtout << x << '\t' << y << endl;
 	}
+	txtFile.close();
+
+	//update status bar
+	statusLabel->setText("Finished writing to "+fileName);
 }
 
 void rectExtractor::ShowLastImage()
