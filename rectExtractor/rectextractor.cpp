@@ -56,6 +56,10 @@ rectExtractor::rectExtractor(QWidget *parent, Qt::WFlags flags)
 	//display image
 	imgLabel = new QLabel(this);
 	imgLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+	imgScroll = new QScrollArea();
+	imgScroll->setWidget(imgLabel);
+	imgScroll->setMinimumWidth(250);
+	imgScroll->setMinimumHeight(500);
 	//point list
 	pointList = new QListWidget(this);
 	pointList->setFixedWidth(200);
@@ -114,7 +118,8 @@ rectExtractor::rectExtractor(QWidget *parent, Qt::WFlags flags)
 	//align : last, image, next, point
 	QHBoxLayout *imgLayout = new QHBoxLayout;
 	imgLayout->addWidget(lastImgButton);
-	imgLayout->addWidget(imgLabel);
+	imgLayout->addWidget(imgScroll);//
+	//imgLayout->addWidget(imgLabel);
 	imgLayout->addWidget(nextImgButton);
 	imgLayout->addLayout(pointLayout);
 	//align : main
@@ -791,11 +796,14 @@ void rectExtractor::mousePressEvent(QMouseEvent *event)
 	if (modeButtonGroup->checkedId() == 2)//manual marking
 	{
 		QPoint mousePoint = event->pos();
-		QPoint imgTL = imgLabel->geometry().topLeft();
+		//QPoint imgTL = imgLabel->geometry().topLeft();
+		QPoint imgTL = imgScroll->geometry().topLeft();
 		int menuHeight = menuBar()->height();
+		int scrollDis = imgScroll->verticalScrollBar()->value()
+			- imgScroll->verticalScrollBar()->minValue();
 
 		int imgX = mousePoint.x()-imgTL.x();
-		int imgY = mousePoint.y()-menuHeight-imgTL.y();
+		int imgY = mousePoint.y()-menuHeight-imgTL.y()+scrollDis;
 
 		if ( imgX<0
 			| imgX>imgLabel->pixmap()->width()
@@ -834,25 +842,25 @@ void rectExtractor::paintEvent(QPaintEvent *event)
 
 		int menuHeight = menuBar()->height();
 
-		painter.drawLine(imgLabel->geometry().topLeft().x(),
-			imgLabel->geometry().topLeft().y()+menuHeight,
-			imgLabel->geometry().bottomLeft().x(),
-			imgLabel->geometry().bottomLeft().y()+menuHeight
+		painter.drawLine(imgScroll->geometry().topLeft().x(),
+			imgScroll->geometry().topLeft().y()+menuHeight,
+			imgScroll->geometry().bottomLeft().x(),
+			imgScroll->geometry().bottomLeft().y()+menuHeight
 			);
-		painter.drawLine(imgLabel->geometry().topRight().x(),
-			imgLabel->geometry().topRight().y()+menuHeight,
-			imgLabel->geometry().bottomRight().x(),
-			imgLabel->geometry().bottomRight().y()+menuHeight
+		painter.drawLine(imgScroll->geometry().topRight().x(),
+			imgScroll->geometry().topRight().y()+menuHeight,
+			imgScroll->geometry().bottomRight().x(),
+			imgScroll->geometry().bottomRight().y()+menuHeight
 			);
-		painter.drawLine(imgLabel->geometry().topLeft().x(),
-			imgLabel->geometry().topLeft().y()+menuHeight,
-			imgLabel->geometry().topRight().x(),
-			imgLabel->geometry().topRight().y()+menuHeight
+		painter.drawLine(imgScroll->geometry().topLeft().x(),
+			imgScroll->geometry().topLeft().y()+menuHeight,
+			imgScroll->geometry().topRight().x(),
+			imgScroll->geometry().topRight().y()+menuHeight
 			);
-		painter.drawLine(imgLabel->geometry().bottomLeft().x(),
-			imgLabel->geometry().bottomLeft().y()+menuHeight,
-			imgLabel->geometry().bottomRight().x(),
-			imgLabel->geometry().bottomRight().y()+menuHeight
+		painter.drawLine(imgScroll->geometry().bottomLeft().x(),
+			imgScroll->geometry().bottomLeft().y()+menuHeight,
+			imgScroll->geometry().bottomRight().x(),
+			imgScroll->geometry().bottomRight().y()+menuHeight
 			);
 
 		painter.end();

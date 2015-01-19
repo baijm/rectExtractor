@@ -7,6 +7,8 @@
 #include <QtGui/QFileDialog>
 #include <QtGui/QLabel>
 #include <QtGui/QImage>
+#include <QtGui/QScrollArea>
+#include <QtGui/QScrollBar>
 #include <QtGui/QMessageBox>
 #include <QtGui/QPushButton>
 #include <QtGui/QRadioButton>
@@ -71,6 +73,7 @@ private:
 	QPushButton *lastImgButton;//show last image
 	QPushButton *nextImgButton;//show next image
 	QLabel *imgLabel;//display image
+	QScrollArea *imgScroll;//if image is too large
 	QLabel *countPoints;
 	QListWidget *pointList;
 	
